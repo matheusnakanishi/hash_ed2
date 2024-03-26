@@ -70,35 +70,45 @@ void inserir(Lista *tabela[], Produto novoProduto) {
 
     No *novoNo = (No*)malloc(sizeof(No));
     novoNo->produto = novoProduto;
+    No *aux = tabela[id]->inicio;
+    while (aux) {
+        if (aux->produto.codigo == novoProduto.codigo) {
+            printf("\nCodigo de produto ja utilizado. Produto nao cadastrado\n");
+            return;
+        }
+        aux = aux->prox;
+    }
+    
     novoNo->prox = tabela[id]->inicio;
     tabela[id]->inicio = novoNo;
     tabela[id]->tam++;
 }
 
-void remover(Lista *tabela[], int cod) {
+int remover(Lista *tabela[], int cod) {
     int id = dobra(cod);
 
     No *aux = tabela[id]->inicio;
 
-    if (aux->produto.codigo == cod) {
+    if (aux && aux->produto.codigo == cod) {
         tabela[id]->inicio = aux->prox;
         tabela[id]->tam--;
         free(aux);
-        return;
+        printf("Produto removido\n");
+        return 1;
     }
     else {
-        while (aux->prox) {
+        while (aux && aux->prox) {
             if (aux->prox->produto.codigo == cod) {
                 No *del = aux->prox;
                 aux->prox = aux->prox->prox;
                 tabela[id]->tam--;
                 free(del);
-                return;
+                return 1;
             }
             aux = aux->prox;
         }
     }
-    printf("\nProduto nao encontrado\n");
+    return 0;
 }
 
 void destruirTabela(Lista *tabela[]){
@@ -113,6 +123,7 @@ void destruirTabela(Lista *tabela[]){
 }
 
 void imprimir(Lista *tabela[]) {
+    printf("\nTabela <= R$200,00\n");
     for (int i = 0; i < M; i++) {
         No *aux = tabela[i]->inicio;
         printf("[%d]->", i);
@@ -123,11 +134,92 @@ void imprimir(Lista *tabela[]) {
         printf("NULL\n");
     }
 }
+//2
+void incializarHash2(Produto *tabela[]) {
+    for (int i = 0; i < M; i++)
+        tabela[i] = NULL;
+}
+
+int divisao(int cod) {
+    return cod % M;
+}
+
+int hash2(int cod) {
+    return 23 - (cod % 23);
+}
+
+void inserir2(Produto *tabela[], Produto produto) {
+    int id = divisao(produto.codigo);
+    int h2 = hash2(produto.codigo);
+    int contador = 0;
+
+    while (tabela[id] != NULL && contador <= M) {
+        if (tabela[id]->codigo == produto.codigo) {
+            printf("Codigo de produto ja utilizado. Produto nao cadastrado\n");
+            return;
+        }
+        id = (id + contador * h2) % M;
+        contador++;
+    }
+    
+    if (contador > M) 
+        printf("\nTabela Hash de Encadeamento Aberto cheia.\n");
+    else {
+        Produto *novoProduto = (Produto *)malloc(sizeof(Produto));
+        *novoProduto = produto; 
+        tabela[id] = novoProduto;
+    }
+}
+
+Produto *busca2(Produto *tabela[], int cod) {
+    int id = divisao(cod);
+    int h2 = hash2(cod);
+    int contador = 0;
+
+    while (tabela[id] != NULL && contador <= M) {
+        if (tabela[id]->codigo == cod)
+            return tabela[id];
+        
+        id = (id + contador * h2) % M;
+        contador++;
+    }
+    return NULL;
+}
+
+void remover2(Produto *tabela[], int cod) {
+    int id = divisao(cod);
+    int h2 = hash2(cod);
+    int contador = 0;
+
+    while (tabela[id] != NULL && contador <= M) {
+        if (tabela[id]->codigo == cod) {
+            free(tabela[id]);
+            tabela[id] = NULL;
+            printf("Produto removido\n");
+            return;
+        }
+        id = (id + contador * h2) % M;
+        contador++;
+    }
+    printf("Produto nao encontrado\n");
+}
+
+void imprimir2(Produto *tabela[]) {
+    printf("\n\nTabela > R$200,00\n");
+    for (int i = 0; i < M; i++) {
+        if (tabela[i] == NULL )
+            printf("%d - NULL\n", i);
+        else
+            printf("%d - [%d]\n", i, tabela[i]->codigo);
+    }
+}
 
 
 int main() {
     Lista *tabela[M];
     inicializarHash(tabela);
+    Produto *tabela2[M];
+    incializarHash2(tabela2);
     int cod = 0;
     Produto novoProduto;
     int op;
@@ -138,24 +230,43 @@ int main() {
         switch (op) {
         case 1:
             novoProduto = criarProduto();
-            inserir(tabela, novoProduto);
+            if (novoProduto.preco <= 200) {
+                if (busca2(tabela2, novoProduto.codigo) == NULL)
+                    inserir(tabela, novoProduto);
+                else
+                    printf("\nCodigo ja utilizado. Produto nao cadastrado.\n");
+            }
+            else if(busca(tabela, novoProduto.codigo) == NULL)
+                inserir2(tabela2, novoProduto);
+            else
+                printf("\nCodigo ja utilizado. Produto nao cadastrado.\n");
             break;
         case 2:
             printf("\nCodigo: ");
             scanf("%d", &cod);
-            remover(tabela, cod);
+            if(remover(tabela, cod) == 0) 
+                remover2(tabela2, cod);
             break;
         case 3:
             printf("\nCodigo: ");
             scanf("%d", &cod);
             Produto *produtoBusca = busca(tabela, cod);
-            printf("%s\nR$%.2lf",produtoBusca->descricao, produtoBusca->preco);
+            if (produtoBusca == NULL)
+                produtoBusca = busca2(tabela2, cod);
+            
+               
+            if (produtoBusca != NULL)
+                printf("%s\nR$%.2lf\n",produtoBusca->descricao, produtoBusca->preco);
+            else
+                printf("Produto nao encontrado\n");
             break;
         case 4:
             imprimir(tabela);
+            imprimir2(tabela2);
             break;
         case 0:
             destruirTabela(tabela);
+            incializarHash2(tabela2);
             printf("\nSaindo\n");
             break;
         
